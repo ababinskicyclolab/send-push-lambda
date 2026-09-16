@@ -1,0 +1,49 @@
+name: Deploy Send Push Lambda
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  LAMBDA_FUNCTION: cyclolab-send-push-dev
+
+jobs:
+  deploy:
+    name: Build e deploy Lambda
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build
+        run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap .
+
+      - name: Package
+        run: zip bootstrap.zip bootstrap
+
+      - name: Deploy código
+        run: |
+          aws lambda update-function-code \
+            --function-name $LAMBDA_FUNCTION \
+            --zip-file fileb://bootstrap.zip \
+            --region $AWS_REGION
+
+      - name: Aguardar atualização
+        run: |
+          aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION \
+            --region $AWS_REGION
