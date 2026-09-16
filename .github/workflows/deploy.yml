@@ -2,16 +2,22 @@ name: Deploy Send Push Lambda
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [dev, production]
 
 env:
   AWS_REGION: us-east-1
-  LAMBDA_FUNCTION: cyclolab-send-push-dev
+  LAMBDA_FUNCTION: cyclolab-send-push-${{ inputs.environment }}
 
 jobs:
   deploy:
     name: Build e deploy Lambda
     runs-on: ubuntu-latest
-    environment: dev
+    environment: ${{ inputs.environment }}
     permissions:
       id-token: write
       contents: read
